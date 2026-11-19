@@ -1,0 +1,1804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Lorentz Launcher — Subatomic Particle Accelerator Game</title>
+    <!-- Tailwind CSS for clean, responsive UI overlays -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter & JetBrains Mono for scientific telemetry -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Custom styling for Canvas & Sci-Fi Telemetry UI */
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #060b14;
+            font-family: 'Inter', sans-serif;
+            color: #e2e8f0;
+        }
+        .font-mono-tech {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        #gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            touch-action: none; /* Prevents mobile scrolling while aiming */
+            cursor: crosshair;
+        }
+        /* Subtle custom scrollbar for the upgrade modal */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.8);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(56, 189, 248, 0.4);
+            border-radius: 9999px;
+        }
+        /* Glowing button effects */
+        .btn-glow-cyan {
+            box-shadow: 0 0 15px rgba(34, 211, 238, 0.35);
+            transition: all 0.15s ease;
+        }
+        .btn-glow-cyan:hover:not(:disabled) {
+            box-shadow: 0 0 22px rgba(34, 211, 238, 0.65);
+            transform: translateY(-1px);
+        }
+        .btn-glow-cyan:active:not(:disabled) {
+            transform: translateY(1px);
+        }
+        .glass-panel {
+            background: rgba(10, 18, 32, 0.84);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(56, 189, 248, 0.22);
+        }
+    </style>
+</head>
+<body class="relative w-full h-full">
+
+    <!-- Main Fullscreen Physics Simulation Canvas -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- ===================================================================== -->
+    <!-- TOP TELEMETRY HUD                                                     -->
+    <!-- ===================================================================== -->
+    <header class="fixed top-0 left-0 right-0 z-20 p-2 sm:p-4 pointer-events-none flex flex-wrap items-center justify-between gap-2">
+        <!-- Left: Distance & Speed Readout -->
+        <div class="glass-panel rounded-xl px-3 py-2 sm:px-4 sm:py-2.5 flex items-center gap-3 sm:gap-5 pointer-events-auto shadow-lg">
+            <div>
+                <div class="text-[10px] sm:text-xs uppercase tracking-wider text-slate-400 font-semibold">Distance</div>
+                <div id="hudDistance" class="font-mono-tech text-base sm:text-xl font-bold text-cyan-300">0.0 m</div>
+            </div>
+            <div class="h-7 w-px bg-slate-700/80"></div>
+            <div>
+                <div class="text-[10px] sm:text-xs uppercase tracking-wider text-slate-400 font-semibold">Best</div>
+                <div id="hudBestDistance" class="font-mono-tech text-sm sm:text-lg font-semibold text-slate-200">0.0 m</div>
+            </div>
+            <div class="hidden md:block h-7 w-px bg-slate-700/80"></div>
+            <div class="hidden md:block">
+                <div class="text-[10px] sm:text-xs uppercase tracking-wider text-slate-400 font-semibold">Velocity |v|</div>
+                <div id="hudVelocity" class="font-mono-tech text-sm sm:text-lg font-semibold text-emerald-400">0 m/s</div>
+            </div>
+        </div>
+
+        <!-- Center: Active Particle Badge -->
+        <div class="glass-panel rounded-xl px-3 py-2 sm:px-4 sm:py-2.5 flex items-center gap-2.5 pointer-events-auto shadow-lg">
+            <span id="hudParticleDot" class="w-3.5 h-3.5 rounded-full inline-block shadow-md"></span>
+            <div>
+                <div class="flex items-center gap-1.5">
+                    <span id="hudParticleName" class="font-bold text-xs sm:text-sm text-white">Electron</span>
+                    <span id="hudParticleSymbol" class="font-mono-tech text-xs px-1.5 py-0.5 rounded bg-slate-800 text-cyan-300">e⁻</span>
+                </div>
+                <div id="hudParticleStats" class="font-mono-tech text-[11px] text-slate-300">q: -1e | m: 1u</div>
+            </div>
+        </div>
+
+        <!-- Right: Energy Credits (eV) & Lab Hangar Button -->
+        <div class="flex items-center gap-2 pointer-events-auto">
+            <div class="glass-panel rounded-xl px-3 py-2 sm:px-4 sm:py-2.5 shadow-lg text-right">
+                <div class="text-[10px] sm:text-xs uppercase tracking-wider text-amber-400/90 font-semibold">Energy Credits</div>
+                <div id="hudCredits" class="font-mono-tech text-base sm:text-xl font-bold text-amber-300">0 eV</div>
+            </div>
+
+            <button id="btnOpenLab" class="glass-panel hover:bg-cyan-950/80 border-cyan-400/50 text-cyan-200 rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 font-semibold text-xs sm:text-sm flex items-center gap-2 btn-glow-cyan cursor-pointer">
+                <!-- Inline SVG Gear / Atom Icon -->
+                <svg class="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(30 12 12)"></ellipse>
+                    <ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(-30 12 12)"></ellipse>
+                    <ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(90 12 12)"></ellipse>
+                </svg>
+                <span>Lab &amp; Particles</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- ===================================================================== -->
+    <!-- BOTTOM CONTROLS BAR (Aim, Charge, Vectors Toggle, Quick Reset)        -->
+    <!-- ===================================================================== -->
+    <footer class="fixed bottom-0 left-0 right-0 z-20 p-2 sm:p-4 pointer-events-none flex flex-col items-center gap-2">
+        <!-- Contextual Instruction Banner -->
+        <div id="instructionBanner" class="glass-panel rounded-full px-4 py-1.5 text-xs sm:text-sm text-cyan-200/95 font-medium shadow-md text-center">
+            Aim with Mouse/Touch or <span class="font-mono-tech text-amber-300">↑/↓</span> • Hold <span class="font-mono-tech text-amber-300">SPACE</span> or Click &amp; Hold to charge Accelerator Field!
+        </div>
+
+        <div class="glass-panel rounded-2xl p-2.5 sm:px-5 sm:py-3 pointer-events-auto flex flex-wrap items-center justify-center gap-3 sm:gap-5 shadow-xl max-w-full">
+            <!-- Angle Control -->
+            <div class="flex items-center gap-2">
+                <label for="angleSlider" class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Angle</label>
+                <input id="angleSlider" type="range" min="-65" max="65" value="15" step="1" class="w-24 sm:w-32 accent-cyan-400 cursor-pointer">
+                <span id="angleReadout" class="font-mono-tech text-xs sm:text-sm text-cyan-300 w-10 text-right">+15°</span>
+            </div>
+
+            <!-- Launch / Charge Button -->
+            <button id="btnFire" class="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-extrabold text-xs sm:text-sm uppercase tracking-wider px-5 py-2.5 rounded-xl btn-glow-cyan cursor-pointer">
+                Hold to Charge &amp; Fire
+            </button>
+
+            <!-- Toggle Force Vectors Visualization -->
+            <button id="btnToggleVectors" class="bg-slate-800/90 hover:bg-slate-700 border border-slate-600/80 text-slate-200 text-xs font-semibold px-3 py-2 rounded-xl transition cursor-pointer flex items-center gap-1.5">
+                <span id="vectorStatusDot" class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                <span>Force Vectors: ON</span>
+            </button>
+
+            <!-- Abort / Reset Run Button -->
+            <button id="btnResetRun" class="hidden bg-rose-950/90 hover:bg-rose-900 border border-rose-500/50 text-rose-200 text-xs font-semibold px-3 py-2 rounded-xl transition cursor-pointer">
+                Abort Run
+            </button>
+        </div>
+    </footer>
+
+    <!-- ===================================================================== -->
+    <!-- RUN SUMMARY OVERLAY (Shown when particle hits wall or stops)          -->
+    <!-- ===================================================================== -->
+    <div id="summaryModal" class="hidden fixed inset-0 z-30 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="glass-panel rounded-2xl max-w-md w-full p-6 border-cyan-400/40 shadow-2xl text-center space-y-4">
+            <div id="summaryReasonBadge" class="inline-block px-3 py-1 rounded-full text-xs font-mono-tech uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                Containment Wall Impact
+            </div>
+            <h2 class="text-2xl font-extrabold text-white">Beam Telemetry Report</h2>
+
+            <div class="grid grid-cols-2 gap-3 bg-slate-900/80 p-4 rounded-xl border border-slate-800 text-left">
+                <div>
+                    <div class="text-xs text-slate-400">Distance Traveled</div>
+                    <div id="sumDistance" class="font-mono-tech text-lg font-bold text-cyan-300">0.0 m</div>
+                </div>
+                <div>
+                    <div class="text-xs text-slate-400">Bonus Orbs Collected</div>
+                    <div id="sumOrbs" class="font-mono-tech text-lg font-bold text-emerald-400">0</div>
+                </div>
+                <div>
+                    <div class="text-xs text-slate-400">Peak Velocity</div>
+                    <div id="sumMaxSpeed" class="font-mono-tech text-base font-semibold text-slate-200">0 m/s</div>
+                </div>
+                <div>
+                    <div class="text-xs text-slate-400">Energy Earned</div>
+                    <div id="sumEarned" class="font-mono-tech text-lg font-bold text-amber-300">+0 eV</div>
+                </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-3 pt-2">
+                <button id="btnSummaryRelaunch" class="flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-bold py-3 px-4 rounded-xl btn-glow-cyan cursor-pointer">
+                    Next Launch
+                </button>
+                <button id="btnSummaryOpenLab" class="flex-1 bg-slate-800 hover:bg-slate-700 border border-cyan-500/40 text-cyan-200 font-semibold py-3 px-4 rounded-xl transition cursor-pointer">
+                    Upgrades &amp; Particles
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- PARTICLE SELECTION & ACCELERATOR UPGRADE LAB MODAL                    -->
+    <!-- ===================================================================== -->
+    <div id="labModal" class="hidden fixed inset-0 z-40 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6">
+        <div class="glass-panel rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col border-cyan-400/40 shadow-2xl overflow-hidden">
+            <!-- Modal Header -->
+            <div class="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between bg-slate-900/60">
+                <div>
+                    <h2 class="text-lg sm:text-xl font-extrabold text-white flex items-center gap-2">
+                        <span class="text-cyan-400">⚛</span> Particle Synthesis &amp; Linac Upgrades
+                    </h2>
+                    <p class="text-xs text-slate-400">Select a particle species (varying charge q &amp; mass m) or upgrade your electromagnetic launcher.</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="bg-slate-950 px-3 py-1.5 rounded-xl border border-amber-500/30">
+                        <span class="text-xs text-slate-400 mr-1">Balance:</span>
+                        <span id="labCreditsDisplay" class="font-mono-tech font-bold text-amber-300">0 eV</span>
+                    </div>
+                    <button id="btnCloseLab" class="bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl px-3 py-1.5 text-sm font-bold cursor-pointer">
+                        ✕ Close
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modal Body (Scrollable) -->
+            <div class="p-4 sm:p-6 overflow-y-auto space-y-6">
+                <!-- Section 1: Unlockable Particles -->
+                <div>
+                    <h3 class="text-xs uppercase tracking-wider font-bold text-cyan-300 mb-3">1. Subatomic Particle Injector (Select or Synthesize)</h3>
+                    <div id="particleGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        <!-- Dynamically populated from PARTICLES array in JS -->
+                    </div>
+                </div>
+
+                <!-- Section 2: Electromagnetic Launcher Upgrades -->
+                <div>
+                    <h3 class="text-xs uppercase tracking-wider font-bold text-amber-300 mb-3">2. Electromagnetic Launcher &amp; Diagnostics</h3>
+                    <div id="upgradeGrid" class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <!-- Dynamically populated from UPGRADES object in JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- GAME ENGINE & MODULAR PHYSICS SCRIPT                                  -->
+    <!-- ===================================================================== -->
+    <script>
+        /**
+         * =========================================================================
+         * 1. MODULAR GAME CONFIGURATION & PHYSICS CONSTANTS
+         * =========================================================================
+         * Modify these values to easily customize game feel, physics scaling,
+         * chamber dimensions, and field spawn rates!
+         */
+        const CONFIG = {
+            // World Geometry (in pixels; 20 pixels = 1 meter in telemetry)
+            PIXELS_PER_METER: 20,
+            CHAMBER_HALF_HEIGHT: 460,   // Distance from center line (y=0) to top/bottom containment walls
+            LAUNCHER_X: 120,            // X coordinate of the electromagnetic accelerator nozzle
+            LAUNCHER_Y: 0,              // Y coordinate of the launcher (center of vacuum chamber)
+            BARREL_LENGTH: 85,          // Visual & physical length of the initial accelerator stage
+
+            // Physics Integration & Lorentz Force Scaling: F = q * (E + v x B)
+            SUBSTEPS: 8,                // Physics sub-steps per frame for accurate circular B-field orbits
+            E_FORCE_SCALE: 240,         // Multiplier for Electric Field acceleration (F_E = q * E * scale)
+            B_FORCE_SCALE: 1.45,        // Multiplier for Magnetic Field deflection (F_B = q * (v x B) * scale)
+            VACUUM_DRAG: 0.9994,        // Slight relativistic/synchrotron energy loss per frame (1.0 = lossless)
+            MIN_SPEED_THRESHOLD: 22,    // Speed below which particle is considered stopped (ends run)
+
+            // Launch Charge Mechanics
+            CHARGE_RATE: 1.15,          // How fast the launcher capacitor charges (0 to 1 per second)
+            BASE_MIN_LAUNCH_SPEED: 260, // Minimum launch velocity at 0% charge
+            BASE_MAX_LAUNCH_SPEED: 760, // Base maximum launch velocity at 100% charge (before upgrades)
+
+            // Procedural Field & Energy Orb Generation
+            CHUNK_WIDTH: 900,           // Width of each generated sector ahead of the particle
+            SAFE_ZONE_X: 520,           // No hazards/fields spawn immediately on top of the launcher
+            FIELDS_PER_CHUNK: 3,        // Number of E or B field zones generated per 900px sector
+            ORBS_PER_CHUNK: 4,          // Number of collectible energy orbs per sector
+
+            // Economy & Scoring
+            CREDITS_PER_METER: 0.65,    // Base eV earned per meter traveled
+            ORB_BASE_VALUE: 25,         // Base eV earned per Energy Orb collected
+            STORAGE_KEY: 'lorentz_launcher_save_v1'
+        };
+
+        /**
+         * =========================================================================
+         * 2. SUBATOMIC PARTICLE DEFINITIONS (Unlockable Roster)
+         * =========================================================================
+         * Add new particles or tweak charge (q), mass (m), colors, and unlock costs!
+         * Note:
+         *  - Positive charge (+q) accelerates WITH E-field arrows and curves CLOCKWISE in +B (out of page).
+         *  - Negative charge (-q) accelerates AGAINST E-field arrows and curves COUNTER-CLOCKWISE in +B.
+         *  - Higher mass (m) gives greater momentum (harder to deflect, penetrates further).
+         */
+        const PARTICLES = [
+            {
+                id: 'electron',
+                name: 'Electron',
+                symbol: 'e⁻',
+                charge: -1.0,
+                mass: 1.0,
+                color: '#22d3ee',       // Neon Cyan
+                glow: 'rgba(34, 211, 238, 0.7)',
+                radius: 6,
+                unlockCost: 0,
+                description: 'Light, negatively charged lepton. Curves sharply in B-fields and accelerates opposite to E-fields.'
+            },
+            {
+                id: 'positron',
+                name: 'Positron',
+                symbol: 'e⁺',
+                charge: 1.0,
+                mass: 1.0,
+                color: '#f472b6',       // Antimatter Magenta/Pink
+                glow: 'rgba(244, 114, 182, 0.7)',
+                radius: 6,
+                unlockCost: 150,
+                description: 'Antimatter twin of the electron. Same agile mass, opposite positive charge!'
+            },
+            {
+                id: 'proton',
+                name: 'Proton',
+                symbol: 'p⁺',
+                charge: 1.0,
+                mass: 6.5,              // Scaled game-mass (real ratio is 1836, tuned for fun playability!)
+                color: '#fb923c',       // Solar Orange
+                glow: 'rgba(251, 146, 60, 0.7)',
+                radius: 9,
+                unlockCost: 400,
+                description: 'Heavy positively charged baryon. Wider cyclotron turning radius and strong momentum.'
+            },
+            {
+                id: 'alpha',
+                name: 'Alpha Particle',
+                symbol: 'α²⁺',
+                charge: 2.0,
+                mass: 16.0,
+                color: '#facc15',       // High-Energy Gold
+                glow: 'rgba(250, 204, 21, 0.75)',
+                radius: 12,
+                unlockCost: 950,
+                description: 'Helium-4 nucleus (+2e charge). Double Lorentz force punch with massive inertia.'
+            },
+            {
+                id: 'exotic_ion',
+                name: 'Anti-Deuteron Ion',
+                symbol: 'd̄²⁻',
+                charge: -2.2,
+                mass: 11.0,
+                color: '#a78bfa',       // Exotic Violet
+                glow: 'rgba(167, 139, 250, 0.8)',
+                radius: 10,
+                unlockCost: 1800,
+                description: 'Exotic negatively charged heavy ion. High negative charge coupling for daring field surfing.'
+            }
+        ];
+
+        /**
+         * =========================================================================
+         * 3. LAUNCHER & SYSTEM UPGRADES CONFIGURATION
+         * =========================================================================
+         * Adjust upgrade costs, max levels, and per-level scaling formulas here.
+         */
+        const UPGRADE_DEFINITIONS = {
+            acceleratorField: {
+                id: 'acceleratorField',
+                name: 'Linac Field Strength',
+                icon: '⚡',
+                maxLevel: 10,
+                baseCost: 80,
+                costMultiplier: 1.55,
+                description: 'Boosts the electromagnetic launcher field, increasing maximum particle exit velocity.',
+                // Effect: +14% max launch speed per level
+                getEffectValue: (lvl) => 1 + (lvl - 1) * 0.14,
+                formatStat: (lvl) => `${Math.round((1 + (lvl - 1) * 0.14) * 100)}% Field Power`
+            },
+            trajectoryScanner: {
+                id: 'trajectoryScanner',
+                name: 'Lorentz Path Predictor',
+                icon: '📡',
+                maxLevel: 8,
+                baseCost: 70,
+                costMultiplier: 1.5,
+                description: 'Extends real-time predictive trajectory simulation through nearby E & B fields before firing.',
+                // Effect: Number of simulated preview steps
+                getEffectValue: (lvl) => 28 + (lvl - 1) * 22,
+                formatStat: (lvl) => `${28 + (lvl - 1) * 22} Sim Steps`
+            },
+            energyCollector: {
+                id: 'energyCollector',
+                name: 'Calorimeter Gain',
+                icon: '🔋',
+                maxLevel: 10,
+                baseCost: 90,
+                costMultiplier: 1.6,
+                description: 'Increases Energy Credits (eV) harvested from beam distance and detector orbs.',
+                // Effect: +20% eV multiplier per level
+                getEffectValue: (lvl) => 1 + (lvl - 1) * 0.20,
+                formatStat: (lvl) => `${(1 + (lvl - 1) * 0.20).toFixed(1)}x eV Yield`
+            }
+        };
+
+        /**
+         * =========================================================================
+         * 4. GAME STATE & PERSISTENCE
+         * =========================================================================
+         */
+        const state = {
+            // Persistent progression
+            credits: 0,
+            bestDistance: 0,
+            selectedParticleId: 'electron',
+            unlockedParticles: ['electron'],
+            upgrades: {
+                acceleratorField: 1,
+                trajectoryScanner: 1,
+                energyCollector: 1
+            },
+
+            // Runtime Simulation Mode: 'AIMING' | 'CHARGING' | 'FLYING' | 'SUMMARY'
+            mode: 'AIMING',
+            showVectors: true,
+
+            // Launcher Aim & Capacitor Charge
+            aimAngleDeg: 15,            // Degrees (-65 to +65; positive is upward in world view)
+            chargePower: 0.65,          // 0.0 to 1.0
+            chargeDirection: 1,         // Oscillates if held past 100% or clamps cleanly
+
+            // Active Particle State
+            particle: {
+                x: CONFIG.LAUNCHER_X,
+                y: CONFIG.LAUNCHER_Y,
+                vx: 0,
+                vy: 0,
+                trail: [],
+                forceE: { x: 0, y: 0 },
+                forceB: { x: 0, y: 0 },
+                insideAccelerator: false
+            },
+
+            // Current Run Telemetry
+            runDistance: 0,
+            runMaxSpeed: 0,
+            runOrbsCollected: 0,
+            runTime: 0,
+
+            // Procedural World Entities
+            generatedUntilX: 0,
+            fields: [],                 // Array of Electric & Magnetic field zones
+            orbs: [],                   // Array of collectible Energy Orbs
+            floatingTexts: [],          // Visual "+25 eV" popups in world space
+            sparks: [],                 // Particle burst effects on orb pickup / wall hit
+
+            // Camera State
+            camera: {
+                x: 0,
+                y: 0,
+                zoom: 1
+            }
+        };
+
+        // Load saved progress from localStorage if available
+        function loadProgress() {
+            try {
+                const raw = localStorage.getItem(CONFIG.STORAGE_KEY);
+                if (!raw) return;
+                const saved = JSON.parse(raw);
+                if (typeof saved.credits === 'number') state.credits = saved.credits;
+                if (typeof saved.bestDistance === 'number') state.bestDistance = saved.bestDistance;
+                if (Array.isArray(saved.unlockedParticles) && saved.unlockedParticles.length > 0) {
+                    state.unlockedParticles = saved.unlockedParticles;
+                }
+                if (saved.selectedParticleId && state.unlockedParticles.includes(saved.selectedParticleId)) {
+                    state.selectedParticleId = saved.selectedParticleId;
+                }
+                if (saved.upgrades) {
+                    Object.keys(UPGRADE_DEFINITIONS).forEach(key => {
+                        if (typeof saved.upgrades[key] === 'number') {
+                            state.upgrades[key] = Math.min(
+                                UPGRADE_DEFINITIONS[key].maxLevel,
+                                Math.max(1, saved.upgrades[key])
+                            );
+                        }
+                    });
+                }
+            } catch (err) {
+                console.warn('Could not load saved game state:', err);
+            }
+        }
+
+        // Save progress to localStorage
+        function saveProgress() {
+            try {
+                const payload = {
+                    credits: state.credits,
+                    bestDistance: state.bestDistance,
+                    selectedParticleId: state.selectedParticleId,
+                    unlockedParticles: state.unlockedParticles,
+                    upgrades: state.upgrades
+                };
+                localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(payload));
+            } catch (err) {
+                console.warn('Could not save game state:', err);
+            }
+        }
+
+        // Helper to get currently selected particle definition
+        function getCurrentParticleDef() {
+            return PARTICLES.find(p => p.id === state.selectedParticleId) || PARTICLES[0];
+        }
+
+        // Helper to compute upgrade cost for next level
+        function getUpgradeCost(upgradeId) {
+            const def = UPGRADE_DEFINITIONS[upgradeId];
+            const currentLvl = state.upgrades[upgradeId];
+            if (currentLvl >= def.maxLevel) return Infinity;
+            return Math.round(def.baseCost * Math.pow(def.costMultiplier, currentLvl - 1));
+        }
+
+        /**
+         * =========================================================================
+         * 5. PROCEDURAL ELECTROMAGNETIC FIELD & ORB GENERATOR
+         * =========================================================================
+         */
+        function resetWorld() {
+            const pDef = getCurrentParticleDef();
+            const rad = (state.aimAngleDeg * Math.PI) / 180;
+
+            state.mode = 'AIMING';
+            state.runDistance = 0;
+            state.runMaxSpeed = 0;
+            state.runOrbsCollected = 0;
+            state.runTime = 0;
+
+            // Position particle at the tip of the accelerator barrel
+            state.particle = {
+                x: CONFIG.LAUNCHER_X + Math.cos(rad) * CONFIG.BARREL_LENGTH,
+                y: CONFIG.LAUNCHER_Y - Math.sin(rad) * CONFIG.BARREL_LENGTH,
+                vx: 0,
+                vy: 0,
+                trail: [],
+                forceE: { x: 0, y: 0 },
+                forceB: { x: 0, y: 0 },
+                insideAccelerator: false
+            };
+
+            state.fields = [];
+            state.orbs = [];
+            state.floatingTexts = [];
+            state.sparks = [];
+            state.generatedUntilX = CONFIG.SAFE_ZONE_X;
+
+            // Pre-generate initial sectors ahead of the launcher
+            ensureWorldGeneratedAhead(2800);
+
+            // Reset Camera
+            state.camera.x = CONFIG.LAUNCHER_X + 240;
+            state.camera.y = 0;
+
+            updateUIState();
+        }
+
+        function ensureWorldGeneratedAhead(targetX) {
+            while (state.generatedUntilX < targetX) {
+                generateSector(state.generatedUntilX, state.generatedUntilX + CONFIG.CHUNK_WIDTH);
+                state.generatedUntilX += CONFIG.CHUNK_WIDTH;
+            }
+        }
+
+        function generateSector(startX, endX) {
+            // Difficulty scales gradually with distance
+            const distanceMeters = startX / CONFIG.PIXELS_PER_METER;
+            const difficultyScale = Math.min(2.4, 1 + distanceMeters / 650);
+
+            // 1. Generate Randomized Electric (E) and Magnetic (B) Field Zones
+            const sliceWidth = (endX - startX) / CONFIG.FIELDS_PER_CHUNK;
+
+            for (let i = 0; i < CONFIG.FIELDS_PER_CHUNK; i++) {
+                const zoneMinX = startX + i * sliceWidth + 40;
+                const isElectric = Math.random() < 0.5; // 50% E-field, 50% B-field
+
+                if (isElectric) {
+                    // ELECTRIC FIELD ZONE (Rectangular capacitor plates / uniform E-vector)
+                    const width = 180 + Math.random() * 170;
+                    const height = 220 + Math.random() * 240;
+                    const x = zoneMinX + Math.random() * Math.max(20, sliceWidth - width - 40);
+                    const maxY = CONFIG.CHAMBER_HALF_HEIGHT - height / 2 - 30;
+                    const y = (Math.random() * 2 - 1) * maxY;
+
+                    // Pick a clear direction: Up, Down, Forward Boost, or Angled
+                    const angles = [-Math.PI / 2, Math.PI / 2, 0, -Math.PI / 4, Math.PI / 4];
+                    const angle = angles[Math.floor(Math.random() * angles.length)];
+                    const magnitude = (1.2 + Math.random() * 1.4) * difficultyScale;
+
+                    state.fields.push({
+                        type: 'E',
+                        shape: 'rect',
+                        x,
+                        y,
+                        width,
+                        height,
+                        ex: Math.cos(angle) * magnitude,
+                        ey: Math.sin(angle) * magnitude, // Canvas Y+: downward
+                        magnitude
+                    });
+                } else {
+                    // MAGNETIC FIELD ZONE (Circular solenoid / dipole magnet region)
+                    const radius = 115 + Math.random() * 95;
+                    const x = zoneMinX + radius + Math.random() * Math.max(20, sliceWidth - radius * 2);
+                    const maxY = CONFIG.CHAMBER_HALF_HEIGHT - radius - 30;
+                    const y = (Math.random() * 2 - 1) * maxY;
+
+                    // Bz > 0: Out of screen (⊙), Bz < 0: Into screen (⊗)
+                    const polarity = Math.random() < 0.5 ? 1 : -1;
+                    const bz = polarity * (1.1 + Math.random() * 1.3) * difficultyScale;
+
+                    state.fields.push({
+                        type: 'B',
+                        shape: 'circle',
+                        x,
+                        y,
+                        radius,
+                        bz
+                    });
+                }
+            }
+
+            // 2. Generate Collectible Energy Orbs (Detectors)
+            for (let j = 0; j < CONFIG.ORBS_PER_CHUNK; j++) {
+                const ox = startX + 80 + Math.random() * (endX - startX - 160);
+                const oy = (Math.random() * 2 - 1) * (CONFIG.CHAMBER_HALF_HEIGHT - 65);
+                state.orbs.push({
+                    x: ox,
+                    y: oy,
+                    radius: 14,
+                    collected: false,
+                    pulseOffset: Math.random() * Math.PI * 2
+                });
+            }
+        }
+
+        /**
+         * =========================================================================
+         * 6. LORENTZ FORCE PHYSICS ENGINE: F = q * (E + v x B)
+         * =========================================================================
+         */
+
+        /**
+         * Computes the net Electric (Ex, Ey) and Magnetic (Bz) field at world position (x, y).
+         * Overlapping fields superpose linearly according to Maxwell's equations!
+         */
+        function sampleElectromagneticField(x, y) {
+            let Ex = 0;
+            let Ey = 0;
+            let Bz = 0;
+
+            for (let i = 0; i < state.fields.length; i++) {
+                const f = state.fields[i];
+                if (f.type === 'E') {
+                    if (
+                        x >= f.x - f.width / 2 &&
+                        x <= f.x + f.width / 2 &&
+                        y >= f.y - f.height / 2 &&
+                        y <= f.y + f.height / 2
+                    ) {
+                        Ex += f.ex;
+                        Ey += f.ey;
+                    }
+                } else if (f.type === 'B') {
+                    const dx = x - f.x;
+                    const dy = y - f.y;
+                    if (dx * dx + dy * dy <= f.radius * f.radius) {
+                        Bz += f.bz;
+                    }
+                }
+            }
+
+            return { Ex, Ey, Bz };
+        }
+
+        /**
+         * Calculates Lorentz force components (F_E and F_B) on a particle with charge q
+         * moving at velocity (vx, vy) at position (x, y).
+         *
+         * 2D Cross Product with B = (0, 0, Bz):
+         *   v x B = (vy * Bz, -vx * Bz)
+         * Notice that F_B is always perpendicular to velocity v, so a magnetic field
+         * curves the particle's trajectory without changing its speed!
+         */
+        function computeLorentzForces(x, y, vx, vy, charge) {
+            const { Ex, Ey, Bz } = sampleElectromagneticField(x, y);
+
+            // Electric Force: F_E = q * E
+            const fEx = charge * Ex * CONFIG.E_FORCE_SCALE;
+            const fEy = charge * Ey * CONFIG.E_FORCE_SCALE;
+
+            // Magnetic Force: F_B = q * (v x B)
+            const fBx = charge * (vy * Bz) * CONFIG.B_FORCE_SCALE;
+            const fBy = charge * (-vx * Bz) * CONFIG.B_FORCE_SCALE;
+
+            return { fEx, fEy, fBx, fBy };
+        }
+
+        /**
+         * Computes initial launch speed based on current capacitor charge and
+         * the upgraded Linac Accelerator Field Strength.
+         */
+        function getCalculatedLaunchSpeed() {
+            const fieldUpgradeMult = UPGRADE_DEFINITIONS.acceleratorField.getEffectValue(
+                state.upgrades.acceleratorField
+            );
+            const maxSpeed = CONFIG.BASE_MAX_LAUNCH_SPEED * fieldUpgradeMult;
+            const minSpeed = CONFIG.BASE_MIN_LAUNCH_SPEED;
+            return minSpeed + (maxSpeed - minSpeed) * state.chargePower;
+        }
+
+        /**
+         * Fires the particle from the electromagnetic accelerator barrel!
+         */
+        function fireParticle() {
+            if (state.mode !== 'AIMING' && state.mode !== 'CHARGING') return;
+
+            const rad = (state.aimAngleDeg * Math.PI) / 180;
+            const launchSpeed = getCalculatedLaunchSpeed();
+
+            // Place at barrel exit and impart electromagnetic launch velocity
+            state.particle.x = CONFIG.LAUNCHER_X + Math.cos(rad) * CONFIG.BARREL_LENGTH;
+            state.particle.y = CONFIG.LAUNCHER_Y - Math.sin(rad) * CONFIG.BARREL_LENGTH;
+            state.particle.vx = Math.cos(rad) * launchSpeed;
+            state.particle.vy = -Math.sin(rad) * launchSpeed;
+            state.particle.trail = [{ x: state.particle.x, y: state.particle.y }];
+
+            state.mode = 'FLYING';
+            state.runMaxSpeed = launchSpeed;
+
+            // Spawn muzzle flash sparks at accelerator nozzle
+            const pDef = getCurrentParticleDef();
+            spawnSparks(state.particle.x, state.particle.y, pDef.color, 18, 220);
+
+            updateUIState();
+        }
+
+        /**
+         * Advances physics simulation by dt seconds using sub-stepping for precision.
+         */
+        function stepPhysics(dt) {
+            if (state.mode !== 'FLYING') return;
+
+            const pDef = getCurrentParticleDef();
+            const subDt = dt / CONFIG.SUBSTEPS;
+
+            for (let s = 0; s < CONFIG.SUBSTEPS; s++) {
+                const p = state.particle;
+
+                // 1. Compute Lorentz Force F = F_E + F_B
+                const forces = computeLorentzForces(p.x, p.y, p.vx, p.vy, pDef.charge);
+                p.forceE.x = forces.fEx;
+                p.forceE.y = forces.fEy;
+                p.forceB.x = forces.fBx;
+                p.forceB.y = forces.fBy;
+
+                // 2. Newton's Second Law: a = F / m
+                const ax = (forces.fEx + forces.fBx) / pDef.mass;
+                const ay = (forces.fEy + forces.fBy) / pDef.mass;
+
+                // 3. Semi-implicit Euler integration (symplectic: preserves energy well in B-fields)
+                p.vx += ax * subDt;
+                p.vy += ay * subDt;
+                p.x += p.vx * subDt;
+                p.y += p.vy * subDt;
+
+                // 4. Check Containment Wall Collisions (Top & Bottom Shields)
+                if (p.y - pDef.radius <= -CONFIG.CHAMBER_HALF_HEIGHT) {
+                    p.y = -CONFIG.CHAMBER_HALF_HEIGHT + pDef.radius;
+                    endRun('Upper Containment Shield Impact');
+                    return;
+                }
+                if (p.y + pDef.radius >= CONFIG.CHAMBER_HALF_HEIGHT) {
+                    p.y = CONFIG.CHAMBER_HALF_HEIGHT - pDef.radius;
+                    endRun('Lower Containment Shield Impact');
+                    return;
+                }
+
+                // 5. Check Back-Wall / Reversed Beam Containment
+                if (p.x < CONFIG.LAUNCHER_X - 90) {
+                    endRun('Beam Reversed into Injector Shield');
+                    return;
+                }
+            }
+
+            // Apply subtle vacuum damping
+            state.particle.vx *= CONFIG.VACUUM_DRAG;
+            state.particle.vy *= CONFIG.VACUUM_DRAG;
+
+            // Update telemetry metrics
+            const speed = Math.hypot(state.particle.vx, state.particle.vy);
+            if (speed > state.runMaxSpeed) state.runMaxSpeed = speed;
+
+            const currentMeters = Math.max(0, (state.particle.x - CONFIG.LAUNCHER_X) / CONFIG.PIXELS_PER_METER);
+            if (currentMeters > state.runDistance) {
+                state.runDistance = currentMeters;
+            }
+
+            // Record glowing trail point
+            state.particle.trail.push({ x: state.particle.x, y: state.particle.y });
+            if (state.particle.trail.length > 95) {
+                state.particle.trail.shift();
+            }
+
+            // Check Energy Orb Pickups
+            checkOrbCollisions();
+
+            // Generate more chamber sectors ahead
+            ensureWorldGeneratedAhead(state.particle.x + 2200);
+
+            // Clean up far-behind entities to keep frame rates silky smooth
+            const cullX = state.particle.x - 1600;
+            state.fields = state.fields.filter(f => f.x + (f.width || f.radius * 2) > cullX);
+            state.orbs = state.orbs.filter(o => !o.collected && o.x > cullX);
+
+            // End run if particle loses virtually all kinetic energy
+            state.runTime += dt;
+            if (state.runTime > 0.6 && speed < CONFIG.MIN_SPEED_THRESHOLD) {
+                endRun('Particle Kinetic Energy Depleted');
+            }
+        }
+
+        function checkOrbCollisions() {
+            const p = state.particle;
+            const pDef = getCurrentParticleDef();
+            const collectMult = UPGRADE_DEFINITIONS.energyCollector.getEffectValue(
+                state.upgrades.energyCollector
+            );
+
+            for (let i = 0; i < state.orbs.length; i++) {
+                const orb = state.orbs[i];
+                if (orb.collected) continue;
+
+                const dist = Math.hypot(p.x - orb.x, p.y - orb.y);
+                if (dist <= pDef.radius + orb.radius + 6) {
+                    orb.collected = true;
+                    state.runOrbsCollected++;
+
+                    // Small kinetic kick + Energy Credit reward
+                    const orbValue = Math.round(CONFIG.ORB_BASE_VALUE * collectMult);
+                    state.floatingTexts.push({
+                        x: orb.x,
+                        y: orb.y - 16,
+                        text: `+${orbValue} eV`,
+                        color: '#34d399',
+                        life: 1.1
+                    });
+                    spawnSparks(orb.x, orb.y, '#34d399', 14, 150);
+                }
+            }
+        }
+
+        function endRun(reasonText) {
+            state.mode = 'SUMMARY';
+
+            const pDef = getCurrentParticleDef();
+            spawnSparks(state.particle.x, state.particle.y, pDef.color, 28, 260);
+
+            // Calculate Energy Credits (eV) earned
+            const collectMult = UPGRADE_DEFINITIONS.energyCollector.getEffectValue(
+                state.upgrades.energyCollector
+            );
+            const distanceCredits = state.runDistance * CONFIG.CREDITS_PER_METER;
+            const orbCredits = state.runOrbsCollected * CONFIG.ORB_BASE_VALUE;
+            const totalEarned = Math.max(5, Math.round((distanceCredits + orbCredits) * collectMult));
+
+            state.credits += totalEarned;
+            if (state.runDistance > state.bestDistance) {
+                state.bestDistance = state.runDistance;
+            }
+            saveProgress();
+
+            // Populate Summary Modal
+            document.getElementById('summaryReasonBadge').textContent = reasonText;
+            document.getElementById('sumDistance').textContent = `${state.runDistance.toFixed(1)} m`;
+            document.getElementById('sumOrbs').textContent = `${state.runOrbsCollected}`;
+            document.getElementById('sumMaxSpeed').textContent = `${Math.round(state.runMaxSpeed)} m/s`;
+            document.getElementById('sumEarned').textContent = `+${totalEarned} eV`;
+
+            updateUIState();
+            document.getElementById('summaryModal').classList.remove('hidden');
+        }
+
+        /**
+         * =========================================================================
+         * 7. PREDICTIVE LORENTZ TRAJECTORY SIMULATOR (Before Firing)
+         * =========================================================================
+         */
+        function computePredictedTrajectory() {
+            const pDef = getCurrentParticleDef();
+            const rad = (state.aimAngleDeg * Math.PI) / 180;
+            const speed = getCalculatedLaunchSpeed();
+
+            let simX = CONFIG.LAUNCHER_X + Math.cos(rad) * CONFIG.BARREL_LENGTH;
+            let simY = CONFIG.LAUNCHER_Y - Math.sin(rad) * CONFIG.BARREL_LENGTH;
+            let simVx = Math.cos(rad) * speed;
+            let simVy = -Math.sin(rad) * speed;
+
+            const steps = UPGRADE_DEFINITIONS.trajectoryScanner.getEffectValue(
+                state.upgrades.trajectoryScanner
+            );
+            const dt = 0.018;
+            const points = [{ x: simX, y: simY }];
+
+            for (let i = 0; i < steps; i++) {
+                const forces = computeLorentzForces(simX, simY, simVx, simVy, pDef.charge);
+                const ax = (forces.fEx + forces.fBx) / pDef.mass;
+                const ay = (forces.fEy + forces.fBy) / pDef.mass;
+
+                simVx += ax * dt;
+                simVy += ay * dt;
+                simX += simVx * dt;
+                simY += simVy * dt;
+
+                points.push({ x: simX, y: simY });
+
+                // Stop preview line if it hits containment walls
+                if (Math.abs(simY) >= CONFIG.CHAMBER_HALF_HEIGHT) break;
+            }
+
+            return points;
+        }
+
+        /**
+         * =========================================================================
+         * 8. CANVAS RENDERING PIPELINE (Vacuum Chamber, Fields, Particle, Vectors)
+         * =========================================================================
+         */
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        let canvasWidth = window.innerWidth;
+        let canvasHeight = window.innerHeight;
+
+        function resizeCanvas() {
+            const dpr = Math.min(window.devicePixelRatio || 1, 2);
+            canvasWidth = window.innerWidth;
+            canvasHeight = window.innerHeight;
+            canvas.width = canvasWidth * dpr;
+            canvas.height = canvasHeight * dpr;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+            // Responsive zoom so the full height of the vacuum chamber is comfortably visible on mobile & desktop
+            const targetWorldHeight = CONFIG.CHAMBER_HALF_HEIGHT * 2 + 210;
+            state.camera.zoom = Math.min(1.15, Math.max(0.48, canvasHeight / targetWorldHeight));
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        function spawnSparks(x, y, color, count, maxSpeed) {
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 30 + Math.random() * maxSpeed;
+                state.sparks.push({
+                    x,
+                    y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    color,
+                    life: 0.45 + Math.random() * 0.35,
+                    maxLife: 0.8
+                });
+            }
+        }
+
+        function updateEffectsAndCamera(dt, nowSeconds) {
+            // Update charging capacitor if player is holding fire
+            if (state.mode === 'CHARGING') {
+                state.chargePower += CONFIG.CHARGE_RATE * state.chargeDirection * dt;
+                if (state.chargePower >= 1) {
+                    state.chargePower = 1;
+                    state.chargeDirection = -1;
+                } else if (state.chargePower <= 0.15) {
+                    state.chargePower = 0.15;
+                    state.chargeDirection = 1;
+                }
+            }
+
+            // Keep particle anchored to barrel tip while aiming/charging
+            if (state.mode === 'AIMING' || state.mode === 'CHARGING') {
+                const rad = (state.aimAngleDeg * Math.PI) / 180;
+                state.particle.x = CONFIG.LAUNCHER_X + Math.cos(rad) * CONFIG.BARREL_LENGTH;
+                state.particle.y = CONFIG.LAUNCHER_Y - Math.sin(rad) * CONFIG.BARREL_LENGTH;
+            }
+
+            // Smooth camera tracking
+            const targetCamX =
+                state.mode === 'FLYING' || state.mode === 'SUMMARY'
+                    ? state.particle.x + (canvasWidth * 0.18) / state.camera.zoom
+                    : CONFIG.LAUNCHER_X + (canvasWidth * 0.24) / state.camera.zoom;
+
+            const targetCamY =
+                state.mode === 'FLYING' || state.mode === 'SUMMARY'
+                    ? state.particle.y * 0.45
+                    : 0;
+
+            state.camera.x += (targetCamX - state.camera.x) * Math.min(1, dt * 8);
+            state.camera.y += (targetCamY - state.camera.y) * Math.min(1, dt * 6);
+
+            // Update floating score popups
+            for (let i = state.floatingTexts.length - 1; i >= 0; i--) {
+                const ft = state.floatingTexts[i];
+                ft.y -= 36 * dt;
+                ft.life -= dt;
+                if (ft.life <= 0) state.floatingTexts.splice(i, 1);
+            }
+
+            // Update sparks
+            for (let i = state.sparks.length - 1; i >= 0; i--) {
+                const sp = state.sparks[i];
+                sp.x += sp.vx * dt;
+                sp.y += sp.vy * dt;
+                sp.vx *= 0.94;
+                sp.vy *= 0.94;
+                sp.life -= dt;
+                if (sp.life <= 0) state.sparks.splice(i, 1);
+            }
+        }
+
+        function render(nowSeconds) {
+            // Clear background with deep vacuum-chamber navy
+            ctx.fillStyle = '#060b14';
+            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+            ctx.save();
+            // Apply camera transform (center screen -> zoom -> camera offset)
+            ctx.translate(canvasWidth / 2, canvasHeight / 2);
+            ctx.scale(state.camera.zoom, state.camera.zoom);
+            ctx.translate(-state.camera.x, -state.camera.y);
+
+            const viewHalfW = (canvasWidth / 2) / state.camera.zoom;
+            const leftEdge = state.camera.x - viewHalfW - 200;
+            const rightEdge = state.camera.x + viewHalfW + 200;
+
+            // 1. Draw Vacuum Chamber Background Grid & Distance Markers
+            drawChamberGrid(leftEdge, rightEdge);
+
+            // 2. Draw Electromagnetic Field Zones (E-fields & B-fields)
+            drawFieldZones(leftEdge, rightEdge, nowSeconds);
+
+            // 3. Draw Collectible Energy Orbs
+            drawEnergyOrbs(leftEdge, rightEdge, nowSeconds);
+
+            // 4. Draw Top & Bottom Containment Walls
+            drawContainmentWalls(leftEdge, rightEdge);
+
+            // 5. Draw Predictive Trajectory Line (when aiming/charging)
+            if (state.mode === 'AIMING' || state.mode === 'CHARGING') {
+                drawTrajectoryPreview();
+            }
+
+            // 6. Draw Electromagnetic Accelerator Launcher (Linac)
+            drawLauncher(nowSeconds);
+
+            // 7. Draw Active Subatomic Particle, Trail & Force Vectors
+            drawParticleAndVectors();
+
+            // 8. Draw Sparks & Floating Telemetry Popups
+            drawEffects();
+
+            ctx.restore();
+        }
+
+        function drawChamberGrid(leftEdge, rightEdge) {
+            const gridSpacing = 100; // 5 meters per major grid square
+            const startX = Math.floor(leftEdge / gridSpacing) * gridSpacing;
+
+            ctx.lineWidth = 1;
+            for (let x = startX; x <= rightEdge; x += gridSpacing) {
+                const isMajor = Math.abs(x - CONFIG.LAUNCHER_X) % 500 === 0;
+                ctx.strokeStyle = isMajor ? 'rgba(56, 189, 248, 0.14)' : 'rgba(30, 41, 59, 0.45)';
+                ctx.beginPath();
+                ctx.moveTo(x, -CONFIG.CHAMBER_HALF_HEIGHT);
+                ctx.lineTo(x, CONFIG.CHAMBER_HALF_HEIGHT);
+                ctx.stroke();
+
+                // Distance ruler label along center axis
+                if (x >= CONFIG.LAUNCHER_X && (x - CONFIG.LAUNCHER_X) % 200 === 0) {
+                    const meters = Math.round((x - CONFIG.LAUNCHER_X) / CONFIG.PIXELS_PER_METER);
+                    ctx.fillStyle = 'rgba(148, 163, 184, 0.45)';
+                    ctx.font = '600 12px "JetBrains Mono", monospace';
+                    ctx.fillText(`${meters}m`, x + 6, CONFIG.CHAMBER_HALF_HEIGHT - 12);
+                }
+            }
+
+            // Horizontal grid lines
+            for (let y = -400; y <= 400; y += gridSpacing) {
+                ctx.strokeStyle = y === 0 ? 'rgba(56, 189, 248, 0.18)' : 'rgba(30, 41, 59, 0.45)';
+                ctx.beginPath();
+                ctx.moveTo(leftEdge, y);
+                ctx.lineTo(rightEdge, y);
+                ctx.stroke();
+            }
+        }
+
+        function drawContainmentWalls(leftEdge, rightEdge) {
+            const wallY = CONFIG.CHAMBER_HALF_HEIGHT;
+
+            // Hazard glow strips for top and bottom containment barriers
+            ctx.strokeStyle = '#f43f5e';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(leftEdge, -wallY);
+            ctx.lineTo(rightEdge, -wallY);
+            ctx.moveTo(leftEdge, wallY);
+            ctx.lineTo(rightEdge, wallY);
+            ctx.stroke();
+
+            // Subtle red danger gradient near walls
+            const topGrad = ctx.createLinearGradient(0, -wallY, 0, -wallY + 35);
+            topGrad.addColorStop(0, 'rgba(244, 63, 94, 0.25)');
+            topGrad.addColorStop(1, 'rgba(244, 63, 94, 0)');
+            ctx.fillStyle = topGrad;
+            ctx.fillRect(leftEdge, -wallY, rightEdge - leftEdge, 35);
+
+            const botGrad = ctx.createLinearGradient(0, wallY, 0, wallY - 35);
+            botGrad.addColorStop(0, 'rgba(244, 63, 94, 0.25)');
+            botGrad.addColorStop(1, 'rgba(244, 63, 94, 0)');
+            ctx.fillStyle = botGrad;
+            ctx.fillRect(leftEdge, wallY - 35, rightEdge - leftEdge, 35);
+        }
+
+        function drawFieldZones(leftEdge, rightEdge, nowSeconds) {
+            for (let i = 0; i < state.fields.length; i++) {
+                const f = state.fields[i];
+                const halfSpan = f.type === 'E' ? f.width / 2 : f.radius;
+                if (f.x + halfSpan < leftEdge || f.x - halfSpan > rightEdge) continue;
+
+                if (f.type === 'E') {
+                    // ELECTRIC FIELD ZONE (Amber / Gold Vector Field)
+                    const x0 = f.x - f.width / 2;
+                    const y0 = f.y - f.height / 2;
+
+                    ctx.fillStyle = 'rgba(245, 158, 11, 0.09)';
+                    ctx.strokeStyle = 'rgba(251, 191, 36, 0.45)';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.roundRect(x0, y0, f.width, f.height, 14);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    // Draw animated Electric Field vector arrows inside the zone
+                    const angle = Math.atan2(f.ey, f.ex);
+                    const step = 58;
+                    const flowOffset = ((nowSeconds * 28 * f.magnitude) % step) - step / 2;
+
+                    ctx.strokeStyle = 'rgba(251, 191, 36, 0.55)';
+                    ctx.fillStyle = 'rgba(251, 191, 36, 0.65)';
+                    ctx.lineWidth = 1.6;
+
+                    for (let gx = x0 + 32; gx < x0 + f.width - 20; gx += step) {
+                        for (let gy = y0 + 32; gy < y0 + f.height - 20; gy += step) {
+                            const ax = gx + Math.cos(angle) * flowOffset * 0.35;
+                            const ay = gy + Math.sin(angle) * flowOffset * 0.35;
+                            drawMiniArrow(ax, ay, angle, 18);
+                        }
+                    }
+
+                    // Field label badge
+                    ctx.fillStyle = '#fbbf24';
+                    ctx.font = '700 12px "JetBrains Mono", monospace';
+                    ctx.fillText(`E = ${f.magnitude.toFixed(1)} kV/m`, x0 + 10, y0 + 18);
+                } else {
+                    // MAGNETIC FIELD ZONE (Cyan for +Bz ⊙ Out of page, Magenta for -Bz ⊗ Into page)
+                    const isOut = f.bz > 0;
+                    const strokeCol = isOut ? 'rgba(34, 211, 238, 0.5)' : 'rgba(232, 121, 249, 0.5)';
+                    const fillCol = isOut ? 'rgba(34, 211, 238, 0.08)' : 'rgba(232, 121, 249, 0.08)';
+                    const symbolCol = isOut ? 'rgba(34, 211, 238, 0.65)' : 'rgba(232, 121, 249, 0.65)';
+
+                    ctx.fillStyle = fillCol;
+                    ctx.strokeStyle = strokeCol;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(f.x, f.y, f.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    // Draw classic physics ⊙ (dot) or ⊗ (cross) grid inside circle
+                    const spacing = 48;
+                    ctx.strokeStyle = symbolCol;
+                    ctx.fillStyle = symbolCol;
+                    ctx.lineWidth = 1.5;
+
+                    for (let gx = f.x - f.radius + 26; gx <= f.x + f.radius - 26; gx += spacing) {
+                        for (let gy = f.y - f.radius + 26; gy <= f.y + f.radius - 26; gy += spacing) {
+                            if (Math.hypot(gx - f.x, gy - f.y) <= f.radius - 18) {
+                                ctx.beginPath();
+                                ctx.arc(gx, gy, 7, 0, Math.PI * 2);
+                                ctx.stroke();
+
+                                if (isOut) {
+                                    // Dot (⊙) = Magnetic field pointing out of screen (+Z)
+                                    ctx.beginPath();
+                                    ctx.arc(gx, gy, 2.2, 0, Math.PI * 2);
+                                    ctx.fill();
+                                } else {
+                                    // Cross (⊗) = Magnetic field pointing into screen (-Z)
+                                    ctx.beginPath();
+                                    ctx.moveTo(gx - 4.5, gy - 4.5);
+                                    ctx.lineTo(gx + 4.5, gy + 4.5);
+                                    ctx.moveTo(gx + 4.5, gy - 4.5);
+                                    ctx.lineTo(gx - 4.5, gy + 4.5);
+                                    ctx.stroke();
+                                }
+                            }
+                        }
+                    }
+
+                    // Magnetic Flux Density Label
+                    ctx.fillStyle = isOut ? '#22d3ee' : '#e879f9';
+                    ctx.font = '700 12px "JetBrains Mono", monospace';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(
+                        `B = ${Math.abs(f.bz).toFixed(1)} T (${isOut ? '⊙ +Z' : '⊗ -Z'})`,
+                        f.x,
+                        f.y - f.radius + 20
+                    );
+                    ctx.textAlign = 'left';
+                }
+            }
+        }
+
+        function drawMiniArrow(x, y, angle, length) {
+            const half = length / 2;
+            const x1 = x - Math.cos(angle) * half;
+            const y1 = y - Math.sin(angle) * half;
+            const x2 = x + Math.cos(angle) * half;
+            const y2 = y + Math.sin(angle) * half;
+
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+
+            // Arrowhead
+            const headLen = 5.5;
+            ctx.beginPath();
+            ctx.moveTo(x2, y2);
+            ctx.lineTo(x2 - headLen * Math.cos(angle - 0.5), y2 - headLen * Math.sin(angle - 0.5));
+            ctx.lineTo(x2 - headLen * Math.cos(angle + 0.5), y2 - headLen * Math.sin(angle + 0.5));
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        function drawEnergyOrbs(leftEdge, rightEdge, nowSeconds) {
+            for (let i = 0; i < state.orbs.length; i++) {
+                const orb = state.orbs[i];
+                if (orb.collected || orb.x + 30 < leftEdge || orb.x - 30 > rightEdge) continue;
+
+                const pulse = Math.sin(nowSeconds * 4.5 + orb.pulseOffset) * 2.5;
+
+                // Outer energy halo
+                ctx.fillStyle = 'rgba(16, 185, 129, 0.18)';
+                ctx.beginPath();
+                ctx.arc(orb.x, orb.y, orb.radius + 6 + pulse, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Core detector ring
+                ctx.fillStyle = '#10b981';
+                ctx.strokeStyle = '#a7f3d0';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(orb.x, orb.y, orb.radius * 0.72, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+            }
+        }
+
+        function drawTrajectoryPreview() {
+            const points = computePredictedTrajectory();
+            if (points.length < 2) return;
+
+            const pDef = getCurrentParticleDef();
+            ctx.save();
+            ctx.setLineDash([6, 6]);
+            ctx.lineWidth = 2.5;
+
+            for (let i = 1; i < points.length; i++) {
+                const alpha = 1 - i / points.length;
+                ctx.strokeStyle = pDef.color;
+                ctx.globalAlpha = alpha * 0.75;
+                ctx.beginPath();
+                ctx.moveTo(points[i - 1].x, points[i - 1].y);
+                ctx.lineTo(points[i].x, points[i].y);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        function drawLauncher(nowSeconds) {
+            const rad = (state.aimAngleDeg * Math.PI) / 180;
+
+            ctx.save();
+            ctx.translate(CONFIG.LAUNCHER_X, CONFIG.LAUNCHER_Y);
+
+            // Base Turret Pedestal
+            ctx.fillStyle = '#0f172a';
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.arc(0, 0, 32, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Rotate barrel to aim angle
+            ctx.rotate(-rad);
+
+            // Electromagnetic Accelerator Rails (Top & Bottom Copper/Cyan Coils)
+            ctx.fillStyle = '#1e293b';
+            ctx.strokeStyle = '#64748b';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.roundRect(0, -18, CONFIG.BARREL_LENGTH, 36, 8);
+            ctx.fill();
+            ctx.stroke();
+
+            // Glowing Accelerator Field Coils along barrel (light up with chargePower!)
+            const coilCount = 5;
+            const activeCoils = Math.ceil(state.chargePower * coilCount);
+            for (let c = 0; c < coilCount; c++) {
+                const cx = 14 + c * 14;
+                const isLit = c < activeCoils;
+                ctx.fillStyle = isLit ? '#22d3ee' : '#334155';
+                ctx.fillRect(cx, -21, 5, 42);
+            }
+
+            // Charge Gauge Bar beside barrel when aiming/charging
+            if (state.mode === 'AIMING' || state.mode === 'CHARGING') {
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+                ctx.fillRect(8, 28, CONFIG.BARREL_LENGTH - 8, 8);
+                ctx.fillStyle = state.chargePower > 0.85 ? '#f59e0b' : '#22d3ee';
+                ctx.fillRect(8, 28, (CONFIG.BARREL_LENGTH - 8) * state.chargePower, 8);
+            }
+
+            ctx.restore();
+        }
+
+        function drawParticleAndVectors() {
+            const p = state.particle;
+            const pDef = getCurrentParticleDef();
+
+            // 1. Draw Glowing Trajectory Trail
+            if (p.trail.length > 1) {
+                for (let i = 1; i < p.trail.length; i++) {
+                    const ratio = i / p.trail.length;
+                    ctx.strokeStyle = pDef.color;
+                    ctx.globalAlpha = ratio * 0.65;
+                    ctx.lineWidth = pDef.radius * 1.4 * ratio;
+                    ctx.lineCap = 'round';
+                    ctx.beginPath();
+                    ctx.moveTo(p.trail[i - 1].x, p.trail[i - 1].y);
+                    ctx.lineTo(p.trail[i].x, p.trail[i].y);
+                    ctx.stroke();
+                }
+                ctx.globalAlpha = 1;
+            }
+
+            // 2. Draw Real-Time Lorentz Force Vectors (F_E and F_B) if enabled
+            if (state.mode === 'FLYING' && state.showVectors) {
+                // Electric Force Vector (Amber)
+                const fEMag = Math.hypot(p.forceE.x, p.forceE.y);
+                if (fEMag > 5) {
+                    const len = Math.min(85, fEMag * 0.14);
+                    const ang = Math.atan2(p.forceE.y, p.forceE.x);
+                    drawForceVector(p.x, p.y, ang, len, '#fbbf24', 'F_E');
+                }
+
+                // Magnetic Force Vector (Cyan/Magenta)
+                const fBMag = Math.hypot(p.forceB.x, p.forceB.y);
+                if (fBMag > 5) {
+                    const len = Math.min(85, fBMag * 0.08);
+                    const ang = Math.atan2(p.forceB.y, p.forceB.x);
+                    drawForceVector(p.x, p.y, ang, len, '#38bdf8', 'F_B');
+                }
+            }
+
+            // 3. Draw Subatomic Particle Core & Halo
+            ctx.save();
+            ctx.shadowColor = pDef.color;
+            ctx.shadowBlur = 18;
+            ctx.fillStyle = pDef.color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, pDef.radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Bright white inner core
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, pDef.radius * 0.45, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function drawForceVector(x, y, angle, length, color, label) {
+            const x2 = x + Math.cos(angle) * length;
+            const y2 = y + Math.sin(angle) * length;
+
+            ctx.save();
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            ctx.lineWidth = 2.5;
+
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+
+            // Arrowhead
+            const head = 7;
+            ctx.beginPath();
+            ctx.moveTo(x2, y2);
+            ctx.lineTo(x2 - head * Math.cos(angle - 0.45), y2 - head * Math.sin(angle - 0.45));
+            ctx.lineTo(x2 - head * Math.cos(angle + 0.45), y2 - head * Math.sin(angle + 0.45));
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.font = '700 11px "JetBrains Mono", monospace';
+            ctx.fillText(label, x2 + 6, y2 + 4);
+            ctx.restore();
+        }
+
+        function drawEffects() {
+            // Draw Sparks
+            for (let i = 0; i < state.sparks.length; i++) {
+                const sp = state.sparks[i];
+                ctx.globalAlpha = Math.max(0, sp.life / sp.maxLife);
+                ctx.fillStyle = sp.color;
+                ctx.beginPath();
+                ctx.arc(sp.x, sp.y, 2.6, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+
+            // Draw Floating "+eV" Texts
+            for (let i = 0; i < state.floatingTexts.length; i++) {
+                const ft = state.floatingTexts[i];
+                ctx.globalAlpha = Math.min(1, ft.life);
+                ctx.fillStyle = ft.color;
+                ctx.font = '800 15px "JetBrains Mono", monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText(ft.text, ft.x, ft.y);
+            }
+            ctx.globalAlpha = 1;
+            ctx.textAlign = 'left';
+        }
+
+        /**
+         * =========================================================================
+         * 9. UI SYNC, LAB MODAL RENDERER & PLAYER INPUT HANDLERS
+         * =========================================================================
+         */
+        function updateUIState() {
+            const pDef = getCurrentParticleDef();
+
+            // Top HUD Updates
+            document.getElementById('hudDistance').textContent = `${state.runDistance.toFixed(1)} m`;
+            document.getElementById('hudBestDistance').textContent = `${state.bestDistance.toFixed(1)} m`;
+            const speed = Math.hypot(state.particle.vx, state.particle.vy);
+            document.getElementById('hudVelocity').textContent = `${Math.round(speed)} m/s`;
+            document.getElementById('hudCredits').textContent = `${state.credits.toLocaleString()} eV`;
+
+            // Active Particle Badge
+            const dot = document.getElementById('hudParticleDot');
+            dot.style.backgroundColor = pDef.color;
+            dot.style.boxShadow = `0 0 10px ${pDef.color}`;
+            document.getElementById('hudParticleName').textContent = pDef.name;
+            document.getElementById('hudParticleSymbol').textContent = pDef.symbol;
+            const chargeSign = pDef.charge > 0 ? `+${pDef.charge}` : `${pDef.charge}`;
+            document.getElementById('hudParticleStats').textContent = `q: ${chargeSign}e | m: ${pDef.mass}u`;
+
+            // Bottom Bar Visibility
+            const btnFire = document.getElementById('btnFire');
+            const btnReset = document.getElementById('btnResetRun');
+            const banner = document.getElementById('instructionBanner');
+
+            if (state.mode === 'AIMING' || state.mode === 'CHARGING') {
+                btnFire.classList.remove('hidden');
+                btnFire.textContent =
+                    state.mode === 'CHARGING'
+                        ? `Charging: ${Math.round(state.chargePower * 100)}%`
+                        : 'Hold to Charge & Fire';
+                btnReset.classList.add('hidden');
+                banner.classList.remove('hidden');
+            } else {
+                btnFire.classList.add('hidden');
+                btnReset.classList.remove('hidden');
+                banner.classList.add('hidden');
+            }
+        }
+
+        function renderLabModal() {
+            document.getElementById('labCreditsDisplay').textContent = `${state.credits.toLocaleString()} eV`;
+
+            // 1. Render Particle Cards
+            const particleGrid = document.getElementById('particleGrid');
+            particleGrid.innerHTML = '';
+
+            PARTICLES.forEach(p => {
+                const isUnlocked = state.unlockedParticles.includes(p.id);
+                const isSelected = state.selectedParticleId === p.id;
+                const canAfford = state.credits >= p.unlockCost;
+                const chargeStr = p.charge > 0 ? `+${p.charge}e` : `${p.charge}e`;
+
+                const card = document.createElement('div');
+                card.className = `rounded-xl p-3.5 border transition flex flex-col justify-between gap-3 ${
+                    isSelected
+                        ? 'bg-cyan-950/60 border-cyan-400 shadow-lg'
+                        : 'bg-slate-900/85 border-slate-800'
+                }`;
+
+                card.innerHTML = `
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <div class="flex items-center gap-2">
+                                <span class="w-3.5 h-3.5 rounded-full inline-block" style="background:${p.color}; box-shadow:0 0 8px ${p.color}"></span>
+                                <span class="font-bold text-white text-sm">${p.name}</span>
+                            </div>
+                            <span class="font-mono-tech text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-200">${p.symbol}</span>
+                        </div>
+                        <div class="flex gap-2 font-mono-tech text-xs mb-2">
+                            <span class="px-2 py-0.5 rounded bg-slate-950 text-cyan-300 border border-slate-800">q: ${chargeStr}</span>
+                            <span class="px-2 py-0.5 rounded bg-slate-950 text-amber-300 border border-slate-800">m: ${p.mass}u</span>
+                        </div>
+                        <p class="text-xs text-slate-400 leading-relaxed">${p.description}</p>
+                    </div>
+                    <div>
+                        ${
+                            isSelected
+                                ? `<button disabled class="w-full py-2 rounded-lg bg-cyan-500/20 border border-cyan-400/50 text-cyan-300 font-bold text-xs uppercase tracking-wider">Active in Injector</button>`
+                                : isUnlocked
+                                ? `<button data-select-particle="${p.id}" class="w-full py-2 rounded-lg bg-slate-800 hover:bg-cyan-600 hover:text-slate-950 text-white font-bold text-xs uppercase tracking-wider transition cursor-pointer">Load Particle</button>`
+                                : `<button data-unlock-particle="${p.id}" ${!canAfford ? 'disabled' : ''} class="w-full py-2 rounded-lg font-bold text-xs uppercase tracking-wider transition ${
+                                      canAfford
+                                          ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 cursor-pointer'
+                                          : 'bg-slate-800/60 text-slate-500 cursor-not-allowed'
+                                  }">Synthesize (${p.unlockCost} eV)</button>`
+                        }
+                    </div>
+                `;
+                particleGrid.appendChild(card);
+            });
+
+            // 2. Render Accelerator Upgrades
+            const upgradeGrid = document.getElementById('upgradeGrid');
+            upgradeGrid.innerHTML = '';
+
+            Object.values(UPGRADE_DEFINITIONS).forEach(upg => {
+                const lvl = state.upgrades[upg.id];
+                const isMax = lvl >= upg.maxLevel;
+                const cost = getUpgradeCost(upg.id);
+                const canAfford = state.credits >= cost;
+
+                const card = document.createElement('div');
+                card.className = 'rounded-xl p-3.5 bg-slate-900/85 border border-slate-800 flex flex-col justify-between gap-3';
+                card.innerHTML = `
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="font-bold text-white text-sm">${upg.icon} ${upg.name}</span>
+                            <span class="font-mono-tech text-xs text-amber-300 font-semibold">Lvl ${lvl}/${upg.maxLevel}</span>
+                        </div>
+                        <div class="font-mono-tech text-xs text-cyan-300 mb-2">${upg.formatStat(lvl)}</div>
+                        <p class="text-xs text-slate-400 leading-relaxed">${upg.description}</p>
+                    </div>
+                    <button data-upgrade-id="${upg.id}" ${isMax || !canAfford ? 'disabled' : ''} class="w-full py-2 rounded-lg font-bold text-xs uppercase tracking-wider transition ${
+                        isMax
+                            ? 'bg-emerald-950/60 border border-emerald-500/40 text-emerald-300'
+                            : canAfford
+                            ? 'bg-cyan-500 hover:bg-cyan-400 text-slate-950 cursor-pointer'
+                            : 'bg-slate-800/60 text-slate-500 cursor-not-allowed'
+                    }">
+                        ${isMax ? 'Maxed Out' : `Upgrade (${cost} eV)`}
+                    </button>
+                `;
+                upgradeGrid.appendChild(card);
+            });
+        }
+
+        // Event Delegation for Lab Modal Buttons
+        document.getElementById('labModal').addEventListener('click', e => {
+            const selectBtn = e.target.closest('[data-select-particle]');
+            if (selectBtn) {
+                state.selectedParticleId = selectBtn.getAttribute('data-select-particle');
+                saveProgress();
+                renderLabModal();
+                if (state.mode === 'AIMING' || state.mode === 'CHARGING') resetWorld();
+                else updateUIState();
+                return;
+            }
+
+            const unlockBtn = e.target.closest('[data-unlock-particle]');
+            if (unlockBtn) {
+                const pid = unlockBtn.getAttribute('data-unlock-particle');
+                const pDef = PARTICLES.find(p => p.id === pid);
+                if (pDef && state.credits >= pDef.unlockCost && !state.unlockedParticles.includes(pid)) {
+                    state.credits -= pDef.unlockCost;
+                    state.unlockedParticles.push(pid);
+                    state.selectedParticleId = pid;
+                    saveProgress();
+                    renderLabModal();
+                    if (state.mode === 'AIMING' || state.mode === 'CHARGING') resetWorld();
+                    else updateUIState();
+                }
+                return;
+            }
+
+            const upgBtn = e.target.closest('[data-upgrade-id]');
+            if (upgBtn) {
+                const uid = upgBtn.getAttribute('data-upgrade-id');
+                const cost = getUpgradeCost(uid);
+                if (state.credits >= cost && state.upgrades[uid] < UPGRADE_DEFINITIONS[uid].maxLevel) {
+                    state.credits -= cost;
+                    state.upgrades[uid]++;
+                    saveProgress();
+                    renderLabModal();
+                    updateUIState();
+                }
+            }
+        });
+
+        // Angle Slider Input
+        const angleSlider = document.getElementById('angleSlider');
+        const angleReadout = document.getElementById('angleReadout');
+
+        function setAimAngle(deg) {
+            state.aimAngleDeg = Math.max(-65, Math.min(65, Math.round(deg)));
+            angleSlider.value = state.aimAngleDeg;
+            const prefix = state.aimAngleDeg > 0 ? '+' : '';
+            angleReadout.textContent = `${prefix}${state.aimAngleDeg}°`;
+        }
+
+        angleSlider.addEventListener('input', e => {
+            setAimAngle(Number(e.target.value));
+        });
+
+        // Fire Button (Hold to charge, release to fire)
+        const btnFire = document.getElementById('btnFire');
+        function startCharging() {
+            if (state.mode === 'AIMING') {
+                state.mode = 'CHARGING';
+                state.chargePower = 0.2;
+                state.chargeDirection = 1;
+            }
+        }
+        function releaseChargeAndFire() {
+            if (state.mode === 'CHARGING') {
+                fireParticle();
+            }
+        }
+
+        btnFire.addEventListener('mousedown', startCharging);
+        btnFire.addEventListener('touchstart', e => {
+            e.preventDefault();
+            startCharging();
+        });
+        window.addEventListener('mouseup', () => {
+            if (state.mode === 'CHARGING') releaseChargeAndFire();
+        });
+        window.addEventListener('touchend', () => {
+            if (state.mode === 'CHARGING') releaseChargeAndFire();
+        });
+
+        // Canvas Pointer Aiming & Quick Tap/Hold Launch
+        function updateAimFromPointer(clientX, clientY) {
+            if (state.mode !== 'AIMING' && state.mode !== 'CHARGING') return;
+            // Convert screen point to world point
+            const worldX = (clientX - canvasWidth / 2) / state.camera.zoom + state.camera.x;
+            const worldY = (clientY - canvasHeight / 2) / state.camera.zoom + state.camera.y;
+
+            const dx = Math.max(20, worldX - CONFIG.LAUNCHER_X);
+            const dy = CONFIG.LAUNCHER_Y - worldY; // Inverted because canvas Y+ is down
+            const deg = (Math.atan2(dy, dx) * 180) / Math.PI;
+            setAimAngle(deg);
+        }
+
+        canvas.addEventListener('mousemove', e => {
+            if (state.mode === 'AIMING' || state.mode === 'CHARGING') {
+                updateAimFromPointer(e.clientX, e.clientY);
+            }
+        });
+        canvas.addEventListener('mousedown', e => {
+            if (e.button !== 0) return;
+            if (state.mode === 'AIMING') {
+                updateAimFromPointer(e.clientX, e.clientY);
+                startCharging();
+            }
+        });
+        canvas.addEventListener('touchmove', e => {
+            if (e.touches.length > 0 && (state.mode === 'AIMING' || state.mode === 'CHARGING')) {
+                updateAimFromPointer(e.touches[0].clientX, e.touches[0].clientY);
+            }
+        }, { passive: true });
+        canvas.addEventListener('touchstart', e => {
+            if (e.touches.length > 0 && state.mode === 'AIMING') {
+                updateAimFromPointer(e.touches[0].clientX, e.touches[0].clientY);
+                startCharging();
+            }
+        }, { passive: true });
+
+        // Keyboard Controls (ArrowUp/ArrowDown to aim, Spacebar to charge & fire)
+        window.addEventListener('keydown', e => {
+            if (!document.getElementById('labModal').classList.contains('hidden')) return;
+
+            if (e.code === 'ArrowUp' || e.code === 'KeyW') {
+                setAimAngle(state.aimAngleDeg + 2);
+            } else if (e.code === 'ArrowDown' || e.code === 'KeyS') {
+                setAimAngle(state.aimAngleDeg - 2);
+            } else if (e.code === 'Space') {
+                e.preventDefault();
+                if (state.mode === 'AIMING') {
+                    startCharging();
+                } else if (state.mode === 'SUMMARY') {
+                    document.getElementById('summaryModal').classList.add('hidden');
+                    resetWorld();
+                }
+            }
+        });
+
+        window.addEventListener('keyup', e => {
+            if (e.code === 'Space' && state.mode === 'CHARGING') {
+                e.preventDefault();
+                releaseChargeAndFire();
+            }
+        });
+
+        // Toggle Force Vectors Overlay
+        document.getElementById('btnToggleVectors').addEventListener('click', () => {
+            state.showVectors = !state.showVectors;
+            const dot = document.getElementById('vectorStatusDot');
+            const span = document.querySelector('#btnToggleVectors span:last-child');
+            dot.className = `w-2 h-2 rounded-full ${state.showVectors ? 'bg-emerald-400' : 'bg-slate-500'}`;
+            span.textContent = `Force Vectors: ${state.showVectors ? 'ON' : 'OFF'}`;
+        });
+
+        // Abort Run Button
+        document.getElementById('btnResetRun').addEventListener('click', () => {
+            if (state.mode === 'FLYING') {
+                endRun('Manual Beam Dump');
+            }
+        });
+
+        // Modal Navigation Buttons
+        document.getElementById('btnOpenLab').addEventListener('click', () => {
+            renderLabModal();
+            document.getElementById('labModal').classList.remove('hidden');
+        });
+        document.getElementById('btnCloseLab').addEventListener('click', () => {
+            document.getElementById('labModal').classList.add('hidden');
+        });
+        document.getElementById('btnSummaryRelaunch').addEventListener('click', () => {
+            document.getElementById('summaryModal').classList.add('hidden');
+            resetWorld();
+        });
+        document.getElementById('btnSummaryOpenLab').addEventListener('click', () => {
+            document.getElementById('summaryModal').classList.add('hidden');
+            resetWorld();
+            renderLabModal();
+            document.getElementById('labModal').classList.remove('hidden');
+        });
+
+        /**
+         * =========================================================================
+         * 10. MAIN ANIMATION LOOP (Starts on window.onload)
+         * =========================================================================
+         */
+        let lastTimestamp = 0;
+
+        function gameLoop(timestamp) {
+            if (!lastTimestamp) lastTimestamp = timestamp;
+            // Clamp delta-time to prevent physics jumps when switching browser tabs
+            const dt = Math.min(0.05, (timestamp - lastTimestamp) / 1000);
+            lastTimestamp = timestamp;
+            const nowSeconds = timestamp / 1000;
+
+            stepPhysics(dt);
+            updateEffectsAndCamera(dt, nowSeconds);
+            render(nowSeconds);
+
+            if (state.mode === 'FLYING' || state.mode === 'CHARGING') {
+                updateUIState();
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        window.onload = function () {
+            loadProgress();
+            resizeCanvas();
+            setAimAngle(15);
+            resetWorld();
+            requestAnimationFrame(gameLoop);
+        };
+    </script>
+</body>
+</html>
